@@ -1,0 +1,10 @@
+Metadata-Version: 2.4
+Name: choice-assay
+Version: 0.0.1
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: expidite@ git+https://github.com/oxford-bee-ops/expidite.git
+Requires-Dist: mypy
+Requires-Dist: pip
+
+# Choice-assay

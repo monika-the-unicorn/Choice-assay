@@ -1,0 +1,3 @@
+expidite@ git+https://github.com/oxford-bee-ops/expidite.git
+mypy
+pip

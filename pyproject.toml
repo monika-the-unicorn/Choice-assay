@@ -1,0 +1,41 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "choice-assay"
+version = "0.0.1"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "expidite @ git+https://github.com/oxford-bee-ops/expidite.git",
+    "mypy",
+    "pip",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "model*", "*.pt"]
+
+[tool.ruff]
+line-length = 110
+indent-width = 4
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.ruff.lint]
+select = [
+    "F",   # pyflakes
+    "E",   # pycodestyle
+    "I",   # isort
+    "RUF", # ruff-specific rules
+]
+fixable = ["ALL"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"

@@ -20,7 +20,7 @@ sys.modules['RPi.GPIO'] = Mock()
 # Add the src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from choice_assay.my_choice_assay_sensor_with_leds import ChoiceAssaySensorWithLEDs, ChoiceAssaySensorCfg
+from choice_assay.my_choice_assay_sensor import ChoiceAssaySensorWithLEDs, ChoiceAssaySensorCfg
 
 
 class TestChoiceAssaySensorWithLEDs(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestChoiceAssaySensorWithLEDs(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures"""
         # Use default configuration from the module
-        from choice_assay.my_choice_assay_sensor_with_leds import DEFAULT_CA_SENSOR_CFG
+        from choice_assay.my_choice_assay_sensor import DEFAULT_CA_SENSOR_CFG
         self.config = DEFAULT_CA_SENSOR_CFG
         
         # Mock picamera2 and cv2
@@ -39,11 +39,12 @@ class TestChoiceAssaySensorWithLEDs(unittest.TestCase):
         # Create mock frame
         self.mock_frame = np.zeros((480, 640, 3), dtype=np.uint8)
         
-        with patch('choice_assay.my_choice_assay_sensor_with_leds.Picamera2', self.mock_picamera2), \
-             patch('choice_assay.my_choice_assay_sensor_with_leds.cv2', self.mock_cv2):
+        with patch('choice_assay.my_choice_assay_sensor.Picamera2', self.mock_picamera2), \
+             patch('choice_assay.my_choice_assay_sensor.cv2', self.mock_cv2), \
+             patch('choice_assay.my_choice_assay_sensor.GPIO'):
             self.sensor = ChoiceAssaySensorWithLEDs(self.config)
 
-    @patch('choice_assay.my_choice_assay_sensor_with_leds.GPIO')
+    @patch('choice_assay.my_choice_assay_sensor.GPIO')
     def test_gpio_initialization(self, mock_GPIO):
         """Test GPIO pins are initialized correctly"""
         # Ensure LEDs are enabled in config
@@ -65,7 +66,7 @@ class TestChoiceAssaySensorWithLEDs(unittest.TestCase):
         self.assertTrue(mock_GPIO.setup.called)
         self.assertTrue(self.sensor.gpio_initialized)
 
-    @patch('choice_assay.my_choice_assay_sensor_with_leds.GPIO')
+    @patch('choice_assay.my_choice_assay_sensor.GPIO')
     def test_led_control_functions(self, mock_GPIO):
         """Test LED control functions work correctly"""
         # Set up GPIO to be initialized
@@ -90,7 +91,7 @@ class TestChoiceAssaySensorWithLEDs(unittest.TestCase):
         self.sensor._set_led_state(23, True)  # Frame LED on
         mock_GPIO.output.assert_called_with(23, 1)
 
-    @patch('choice_assay.my_choice_assay_sensor_with_leds.GPIO')
+    @patch('choice_assay.my_choice_assay_sensor.GPIO')
     def test_emergency_stop_button(self, mock_GPIO):
         """Test emergency stop button functionality"""
         # Set up GPIO to be initialized
@@ -106,7 +107,7 @@ class TestChoiceAssaySensorWithLEDs(unittest.TestCase):
         mock_GPIO.input.return_value = 0  # LOW
         self.assertFalse(self.sensor._check_emergency_stop())
 
-    @patch('choice_assay.my_choice_assay_sensor_with_leds.GPIO')
+    @patch('choice_assay.my_choice_assay_sensor.GPIO')
     def test_led_status_updates(self, mock_GPIO):
         """Test LED status updates based on motion detection state"""
         # Set up GPIO to be initialized
@@ -136,7 +137,7 @@ class TestChoiceAssaySensorWithLEDs(unittest.TestCase):
         frame2[373:578, 210:560] = 255  # Motion in left area
         
         # Mock cv2 functions to simulate the actual processing
-        with patch('choice_assay.my_choice_assay_sensor_with_leds.cv2') as mock_cv2:
+        with patch('choice_assay.my_choice_assay_sensor.cv2') as mock_cv2:
             # Mock the image processing pipeline
             mock_cv2.cvtColor.side_effect = lambda img, code: np.mean(img, axis=2).astype(np.uint8)
             mock_cv2.GaussianBlur.side_effect = lambda img, kernel, sigma: img  # Return unchanged
@@ -155,7 +156,7 @@ class TestChoiceAssaySensorWithLEDs(unittest.TestCase):
             # Should detect motion (mocked to return high pixel count)
             self.assertTrue(left_motion2 or right_motion2)
 
-    @patch('choice_assay.my_choice_assay_sensor_with_leds.GPIO')
+    @patch('choice_assay.my_choice_assay_sensor.GPIO')
     def test_cleanup_gpio(self, mock_GPIO):
         """Test GPIO cleanup cleans up properly"""
         # Set up GPIO to be initialized
@@ -178,9 +179,10 @@ class TestChoiceAssaySensorWithLEDs(unittest.TestCase):
         self.assertEqual(self.config.left_detection_roi, (210, 373, 560, 578))
         self.assertEqual(self.config.right_detection_roi, (1170, 373, 1520, 578))
 
-    @patch('choice_assay.my_choice_assay_sensor_with_leds.Picamera2')
-    @patch('choice_assay.my_choice_assay_sensor_with_leds.cv2')
-    def test_sensor_initialization_without_gpio_errors(self, mock_cv2, mock_picamera2):
+    @patch('choice_assay.my_choice_assay_sensor.Picamera2')
+    @patch('choice_assay.my_choice_assay_sensor.cv2')
+    @patch('choice_assay.my_choice_assay_sensor.GPIO')
+    def test_sensor_initialization_without_gpio_errors(self, mock_GPIO, mock_cv2, mock_Picamera2):
         """Test sensor can initialize even with GPIO errors (graceful degradation)"""
         with patch('RPi.GPIO.setmode', side_effect=Exception("No GPIO available")):
             # Should not raise exception, should handle gracefully
@@ -198,7 +200,7 @@ class TestChoiceAssaySensorCfg(unittest.TestCase):
     
     def test_default_configuration(self):
         """Test default configuration values"""
-        from choice_assay.my_choice_assay_sensor_with_leds import DEFAULT_CA_SENSOR_CFG
+        from choice_assay.my_choice_assay_sensor import DEFAULT_CA_SENSOR_CFG
         config = DEFAULT_CA_SENSOR_CFG
         
         self.assertTrue(config.enable_leds)
@@ -209,7 +211,7 @@ class TestChoiceAssaySensorCfg(unittest.TestCase):
 
     def test_configuration_modification(self):
         """Test configuration can be modified"""
-        from choice_assay.my_choice_assay_sensor_with_leds import DEFAULT_CA_SENSOR_CFG
+        from choice_assay.my_choice_assay_sensor import DEFAULT_CA_SENSOR_CFG
         from dataclasses import replace
         
         config = replace(

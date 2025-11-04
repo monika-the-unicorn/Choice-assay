@@ -21,7 +21,7 @@ import os
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from choice_assay.my_choice_assay_sensor import (
-    ChoiceAssaySensor, ChoiceAssaySensorCfg, DEFAULT_CA_SENSOR_CFG,
+    ChoiceAssaySensorWithLEDs, ChoiceAssaySensorCfg, DEFAULT_CA_SENSOR_CFG,
     CA_LEFT_VIDEO_STREAM_INDEX, CA_RIGHT_VIDEO_STREAM_INDEX
 )
 
@@ -84,9 +84,10 @@ def test_motion_detection():
     
     # Create mock sensor with patched dependencies
     with patch('choice_assay.my_choice_assay_sensor.Picamera2'), \
-         patch('choice_assay.my_choice_assay_sensor.cv2.VideoWriter'):
+         patch('choice_assay.my_choice_assay_sensor.cv2.VideoWriter'), \
+         patch('choice_assay.my_choice_assay_sensor.GPIO'):
         
-        sensor = ChoiceAssaySensor(DEFAULT_CA_SENSOR_CFG)
+        sensor = ChoiceAssaySensorWithLEDs(DEFAULT_CA_SENSOR_CFG)
         
         # Test 1: No motion detection
         frame1 = create_synthetic_frame()
@@ -123,37 +124,38 @@ def test_mutual_exclusivity():
     print("Testing Mutual Exclusivity Logic...")
     
     with patch('choice_assay.my_choice_assay_sensor.Picamera2'), \
-         patch('choice_assay.my_choice_assay_sensor.cv2.VideoWriter'):
+         patch('choice_assay.my_choice_assay_sensor.cv2.VideoWriter'), \
+         patch('choice_assay.my_choice_assay_sensor.GPIO'):
         
         # Use faster config for testing
         test_config = replace(DEFAULT_CA_SENSOR_CFG, 
                             detection_frames_needed=3, 
                             grace_period_seconds=1.0)
-        sensor = ChoiceAssaySensor(test_config)
+        sensor = ChoiceAssaySensorWithLEDs(test_config)
         
         # Test 1: Left arena activation
         print("Testing left arena activation...")
         for i in range(5):  # More than detection_frames_needed
-            should_record = sensor._update_dual_arena_motion_state(True, False)
-            print(f"  Frame {i+1}: should_record={should_record}, active_arena={sensor.active_arena}")
+            should_record, active_arena = sensor._update_dual_arena_motion_state(True, False)
+            print(f"  Frame {i+1}: should_record={should_record}, active_arena={active_arena}")
         
         # Test 2: Switch to right arena (should reset left and activate right)
         print("Testing arena switching (left -> right)...")
         for i in range(5):
-            should_record = sensor._update_dual_arena_motion_state(False, True)
-            print(f"  Frame {i+1}: should_record={should_record}, active_arena={sensor.active_arena}")
+            should_record, active_arena = sensor._update_dual_arena_motion_state(False, True)
+            print(f"  Frame {i+1}: should_record={should_record}, active_arena={active_arena}")
             print(f"    Counters - left: {sensor.left_detection_counter}, right: {sensor.right_detection_counter}")
         
         # Test 3: Grace period behavior
         print("Testing grace period...")
         # Stop motion in right arena
-        should_record = sensor._update_dual_arena_motion_state(False, False)
+        should_record, active_arena = sensor._update_dual_arena_motion_state(False, False)
         print(f"  Motion stopped: should_record={should_record}, timer_started={sensor.timer_started}")
         
         # Wait and test grace period expiration
         time.sleep(1.1)  # Slightly longer than grace period
-        should_record = sensor._update_dual_arena_motion_state(False, False)
-        print(f"  After grace period: should_record={should_record}, active_arena={sensor.active_arena}")
+        should_record, active_arena = sensor._update_dual_arena_motion_state(False, False)
+        print(f"  After grace period: should_record={should_record}, active_arena={active_arena}")
         
     print("Mutual exclusivity tests PASSED\n")
 
@@ -201,9 +203,10 @@ def test_state_management():
     print("Testing State Management...")
     
     with patch('choice_assay.my_choice_assay_sensor.Picamera2'), \
-         patch('choice_assay.my_choice_assay_sensor.cv2.VideoWriter'):
+         patch('choice_assay.my_choice_assay_sensor.cv2.VideoWriter'), \
+         patch('choice_assay.my_choice_assay_sensor.GPIO'):
         
-        sensor = ChoiceAssaySensor(DEFAULT_CA_SENSOR_CFG)
+        sensor = ChoiceAssaySensorWithLEDs(DEFAULT_CA_SENSOR_CFG)
         
         # Test initial state
         print(f"✓ Initial state: left_motion={sensor.left_motion_detected}, right_motion={sensor.right_motion_detected}")
@@ -211,7 +214,7 @@ def test_state_management():
         
         # Test counter incrementing
         for i in range(10):
-            sensor._update_dual_arena_motion_state(True, False)
+            should_record, active_arena = sensor._update_dual_arena_motion_state(True, False)
         print(f"✓ After 10 left detections: left_counter={sensor.left_detection_counter}")
         
         # Test counter bounds (should not exceed max_detection_counter)
@@ -221,7 +224,7 @@ def test_state_management():
         
         # Test counter decrementing
         for i in range(5):
-            sensor._update_dual_arena_motion_state(False, False)
+            should_record, active_arena = sensor._update_dual_arena_motion_state(False, False)
         print(f"✓ After 5 no-motion frames: left_counter={sensor.left_detection_counter}")
         
     print("State management tests PASSED\n")

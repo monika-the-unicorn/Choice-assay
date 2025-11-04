@@ -1,31 +1,37 @@
 ####################################################################################################
-# Sensor class that provides motion-detected video recording using picamera2 and OpenCV.
+# Sensor class that provides motion-detected video recording using picamera2 and OpenCV with LED indicators.
 #
-# This implementation continuously streams video through motion detection and only records when 
-# motion is detected. 
-# 
+# This implementation includes the LED management functionality from the original Beecam script:
+# - Pin 17 (Red): Motion counter status - ON when motion counter below threshold, OFF during detection
+# - Pin 22 (Green): Motion detection status - ON during motion detection, OFF otherwise  
+# - Pin 27 (Blue): Grace period indicator - ON during grace period after motion stops
+# - Pin 23: Frame capture indicator - brief pulse for each frame capture
+# - Pin 26 (Button): Input for manual control/emergency stop
+#
 # Key features:
 # - Real-time frame capture using picamera2
 # - Motion detection using frame differencing with configurable sensitivity
 # - Hysteresis-based detection system to prevent false triggers
 # - Grace period continues recording briefly after motion stops
 # - True frame rate control for accurate temporal analysis
-# - Configurable region of interest for targeted detection
+# - Dual-arena mutual exclusivity with separate LED indicators
+# - Visual LED feedback matching original Beecam behavior
 # - Compatible with existing sensor framework
 #
 # Motion Detection Algorithm:
-# 1. Capture frames at specified frame rate
+# 1. Capture frames at specified frame rate with LED indicator
 # 2. Convert to grayscale and apply Gaussian blur
-# 3. Calculate frame-to-frame differences
+# 3. Calculate frame-to-frame differences for each arena
 # 4. Apply binary threshold to create motion mask
-# 5. Use cumulative counter system for robust detection
-# 6. Start recording when counter exceeds threshold
-# 7. Continue recording during grace period after motion stops
+# 5. Use cumulative counter system for robust detection with LED feedback
+# 6. Start recording when counter exceeds threshold - turn on green LED
+# 7. Continue recording during grace period after motion stops - turn on blue LED
 #
-# Configuration:
-# - Use DEFAULT_CA_SENSOR_CFG for standard setup
-# - Use get_single_arena_config() for custom ROI
-# - Adjust motion detection parameters directly in ChoiceAssaySensorCfg for sensitivity tuning
+# LED Behavior:
+# - Red LED: Shows when motion counter is below detection threshold
+# - Green LED: Shows when motion is actively detected and recording
+# - Blue LED: Shows during grace period (continuing recording after motion stops)
+# - Frame LED: Brief pulse for each captured frame
 ####################################################################################################
 from dataclasses import dataclass
 import time
@@ -44,7 +50,19 @@ try:
 except ImportError:
     Picamera2 = None
 
+try:
+    import RPi.GPIO as GPIO
+except ImportError:
+    GPIO = None
+
 logger = root_cfg.setup_logger("choice_assay")
+
+# GPIO Pin definitions (from original Beecam script)
+RED_LED_PIN = 17        # Motion counter status
+GREEN_LED_PIN = 22      # Motion detection active
+BLUE_LED_PIN = 27       # Grace period indicator  
+FRAME_LED_PIN = 23      # Frame capture indicator
+BUTTON_PIN = 26         # Emergency stop button
 
 CA_LEFT_VIDEO_DATA_TYPE_ID = "CAVIDEOLEFT"
 CA_RIGHT_VIDEO_DATA_TYPE_ID = "CAVIDEORIGHT"
@@ -66,6 +84,9 @@ class ChoiceAssaySensorCfg(SensorCfg):
     binary_threshold: int = 3            # Threshold for binary motion mask
     max_detection_counter: int = 30      # Maximum value for detection counter
     
+    # LED configuration
+    enable_leds: bool = True             # Enable LED indicators (disable for testing)
+    
     # Dual arena configuration (based on original Beecam script coordinates)
     left_detection_roi: Tuple[int, int, int, int] = (210, 373, 560, 578)   # (x1, y1, x2, y2)
     right_detection_roi: Tuple[int, int, int, int] = (1170, 373, 1520, 578) # (x1, y1, x2, y2)
@@ -76,7 +97,7 @@ DEFAULT_CA_SENSOR_CFG = ChoiceAssaySensorCfg(
     sensor_type=api.SENSOR_TYPE.CAMERA,
     sensor_index=0,
     sensor_model="PiCameraModule3",
-    description="Dual-arena motion-detected video sensor using picamera2 and OpenCV",
+    description="Dual-arena motion-detected video sensor with LED indicators using picamera2 and OpenCV",
     outputs=[
         Stream(
             description="Motion-triggered video recording from left arena.",
@@ -98,9 +119,9 @@ DEFAULT_CA_SENSOR_CFG = ChoiceAssaySensorCfg(
     # All other values use dataclass defaults
 )
 
-class ChoiceAssaySensor(Sensor):
+class ChoiceAssaySensorWithLEDs(Sensor):
     def __init__(self, config: ChoiceAssaySensorCfg):
-        """Constructor for the ChoiceAssaySensor class with motion detection"""
+        """Constructor for the ChoiceAssaySensor class with motion detection and LED indicators"""
         super().__init__(config)
         self.config = config
         self.recording_format = self.get_stream(CA_LEFT_VIDEO_STREAM_INDEX).format  # Both streams have same format
@@ -123,6 +144,99 @@ class ChoiceAssaySensor(Sensor):
         
         # Camera initialization (will be done in run method for proper error handling)
         self.picam2 = None
+        
+        # GPIO initialization
+        self.gpio_initialized = False
+
+    def _initialize_gpio(self):
+        """Initialize GPIO pins for LED control"""
+        if not self.config.enable_leds:
+            logger.info("LED control disabled in configuration")
+            return
+            
+        if not GPIO:
+            logger.warning("RPi.GPIO library not available. LED control disabled.")
+            return
+        
+        try:
+            # Set up GPIO mode and pins
+            GPIO.setmode(GPIO.BCM)
+            
+            # Define LED pins for output
+            led_pins = [RED_LED_PIN, GREEN_LED_PIN, BLUE_LED_PIN, FRAME_LED_PIN]
+            for pin in led_pins:
+                GPIO.setup(pin, GPIO.OUT)
+                GPIO.output(pin, GPIO.LOW)  # Start with LEDs off
+            
+            # Set up button pin for input
+            GPIO.setup(BUTTON_PIN, GPIO.IN)
+            
+            self.gpio_initialized = True
+            logger.info("GPIO initialized successfully for LED control")
+            
+            # Flash green LED to indicate initialization complete
+            self._flash_initialization_sequence()
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize GPIO: {e}")
+            self.gpio_initialized = False
+
+    def _flash_initialization_sequence(self):
+        """Flash LEDs in sequence to indicate successful initialization"""
+        if not self.gpio_initialized:
+            return
+            
+        try:
+            # Flash green LED 3 times to indicate ready
+            for _ in range(3):
+                GPIO.output(GREEN_LED_PIN, GPIO.HIGH)
+                time.sleep(0.5)
+                GPIO.output(GREEN_LED_PIN, GPIO.LOW)
+                time.sleep(0.5)
+        except Exception as e:
+            logger.error(f"Error in LED initialization sequence: {e}")
+
+    def _set_led_state(self, pin: int, state: bool):
+        """Safely set LED state with error handling"""
+        if not self.gpio_initialized or not GPIO:
+            return
+        
+        try:
+            GPIO.output(pin, GPIO.HIGH if state else GPIO.LOW)
+        except Exception as e:
+            logger.error(f"Error setting LED pin {pin} to {state}: {e}")
+
+    def _pulse_frame_led(self):
+        """Brief pulse on frame LED to indicate frame capture"""
+        if not self.gpio_initialized:
+            return
+        
+        try:
+            GPIO.output(FRAME_LED_PIN, GPIO.HIGH)
+            time.sleep(0.01)  # Very brief pulse
+            GPIO.output(FRAME_LED_PIN, GPIO.LOW)
+        except Exception as e:
+            logger.error(f"Error pulsing frame LED: {e}")
+
+    def _check_emergency_stop(self) -> bool:
+        """Check if emergency stop button is pressed"""
+        if not self.gpio_initialized:
+            return False
+        
+        try:
+            return GPIO.input(BUTTON_PIN) == GPIO.HIGH
+        except Exception as e:
+            logger.error(f"Error reading button state: {e}")
+            return False
+
+    def _cleanup_gpio(self):
+        """Clean up GPIO resources"""
+        if self.gpio_initialized and GPIO:
+            try:
+                GPIO.cleanup()
+                logger.info("GPIO cleanup completed")
+            except Exception as e:
+                logger.error(f"Error during GPIO cleanup: {e}")
 
     def _initialize_camera(self):
         """Initialize the Picamera2 instance"""
@@ -182,7 +296,7 @@ class ChoiceAssaySensor(Sensor):
 
     def _update_dual_arena_motion_state(self, left_motion: bool, right_motion: bool) -> Tuple[bool, Optional[str]]:
         """
-        Update motion detection state for dual arenas with mutual exclusivity.
+        Update motion detection state for dual arenas with mutual exclusivity and LED indicators.
         Returns (should_record, active_arena) where active_arena is 'left', 'right', or None.
         """
         config = self.config
@@ -197,6 +311,12 @@ class ChoiceAssaySensor(Sensor):
             self.right_detection_counter = min(self.right_detection_counter + 1, config.max_detection_counter)
         else:
             self.right_detection_counter = max(self.right_detection_counter - 1, 0)
+        
+        # Update LED states based on motion counters
+        # Red LED indicates when motion counter is below threshold (like original Beecam)
+        motion_below_threshold = (self.left_detection_counter < config.detection_frames_needed and 
+                                 self.right_detection_counter < config.detection_frames_needed)
+        self._set_led_state(RED_LED_PIN, motion_below_threshold)
         
         # Determine if motion is confirmed in each arena
         left_confirmed = self.left_detection_counter >= config.detection_frames_needed
@@ -224,11 +344,22 @@ class ChoiceAssaySensor(Sensor):
                 self.right_motion_detected = (target_arena == 'right')
                 self.active_arena = target_arena
                 self.timer_started = False
+                
+                # LED state: Green ON (motion detected), Blue OFF, Red OFF
+                self._set_led_state(GREEN_LED_PIN, True)
+                self._set_led_state(BLUE_LED_PIN, False)
+                self._set_led_state(RED_LED_PIN, False)
+                
                 logger.info(f"Motion detected in {target_arena} arena - starting recording")
                 return True, target_arena
             elif self.active_arena == target_arena:
                 # Motion continuing in same arena
                 self.timer_started = False  # Reset timer since motion is still active
+                
+                # Keep green LED on, turn off blue LED
+                self._set_led_state(GREEN_LED_PIN, True)
+                self._set_led_state(BLUE_LED_PIN, False)
+                
                 return True, target_arena
             else:
                 # Motion switched to different arena - stop current and start new
@@ -237,6 +368,11 @@ class ChoiceAssaySensor(Sensor):
                 self.right_motion_detected = (target_arena == 'right')
                 self.active_arena = target_arena
                 self.timer_started = False
+                
+                # LED state: Green ON (new motion), Blue OFF
+                self._set_led_state(GREEN_LED_PIN, True)
+                self._set_led_state(BLUE_LED_PIN, False)
+                
                 return True, target_arena
                 
         elif self.left_motion_detected or self.right_motion_detected:
@@ -245,6 +381,11 @@ class ChoiceAssaySensor(Sensor):
                 # Start grace period timer
                 self.timer_started = True
                 self.detection_stopped_time = time.time()
+                
+                # LED state: Green OFF (no active motion), Blue ON (grace period)
+                self._set_led_state(GREEN_LED_PIN, False)
+                self._set_led_state(BLUE_LED_PIN, True)
+                
                 logger.info(f"Motion stopped in {self.active_arena} arena - grace period started ({config.grace_period_seconds}s)")
                 return True, self.active_arena
             else:
@@ -256,13 +397,23 @@ class ChoiceAssaySensor(Sensor):
                     self.timer_started = False
                     old_arena = self.active_arena
                     self.active_arena = None
+                    
+                    # LED state: All detection LEDs OFF (recording stopped)
+                    self._set_led_state(GREEN_LED_PIN, False)
+                    self._set_led_state(BLUE_LED_PIN, False)
+                    
                     logger.info(f"Grace period expired in {old_arena} arena - stopping recording")
                     return False, None
                 else:
-                    # Still in grace period
+                    # Still in grace period - keep blue LED on
+                    self._set_led_state(BLUE_LED_PIN, True)
                     return True, self.active_arena
         
         # No motion detected and not in recording state
+        # Red LED will be controlled by motion counter logic above
+        self._set_led_state(GREEN_LED_PIN, False)
+        self._set_led_state(BLUE_LED_PIN, False)
+        
         return False, None
 
     def _get_stream_index_for_arena(self, arena: str) -> int:
@@ -319,8 +470,8 @@ class ChoiceAssaySensor(Sensor):
         bgr_frame = cv2.cvtColor(roi_frame, cv2.COLOR_RGB2BGR)
         self.video_writer.write(bgr_frame)
 
-    def _stop_video_recording(self) -> Optional[str]:
-        """Stop video recording and return the filename"""
+    def _stop_video_recording(self) -> Optional[Tuple]:
+        """Stop video recording and return (start_time, end_time) tuple"""
         if self.video_writer is None:
             return None
         
@@ -330,15 +481,15 @@ class ChoiceAssaySensor(Sensor):
         end_time = api.utc_now()
         logger.info(f"Stopped video recording for {self.current_recording_arena} arena")
         
-        # Clear arena tracking
-        arena = self.current_recording_arena
+        # Clear arena tracking but save reference for return
+        start_time = self.current_recording_start_time
         self.current_recording_arena = None
+        self.current_recording_start_time = None
         
-        return self.current_recording_start_time, end_time
-
+        return start_time, end_time
 
     def run(self):
-        """Main loop for motion-detected video recording."""
+        """Main loop for motion-detected video recording with LED indicators."""
         if not root_cfg.running_on_rpi and root_cfg.TEST_MODE != root_cfg.MODE.TEST:
             logger.warning("Video configuration is only supported on Raspberry Pi.")
             return
@@ -349,24 +500,36 @@ class ChoiceAssaySensor(Sensor):
         frame_interval = 1.0 / self.config.frame_rate
 
         try:
+            # Initialize GPIO for LED control
+            self._initialize_gpio()
+            
             # Initialize camera
             self._initialize_camera()
-            logger.info("Motion detection video sensor started")
+            logger.info("Motion detection video sensor with LEDs started")
 
         except Exception as e:
-            logger.error(f"Failed to initialize camera: {e}", exc_info=True)
+            logger.error(f"Failed to initialize camera or GPIO: {e}", exc_info=True)
             self.sensor_failed()
             return
 
         # Main motion detection loop
         while self.continue_recording():
             try:
+                # Check emergency stop button
+                # @@@ remove
+                #if self._check_emergency_stop():
+                #    logger.info("Emergency stop button pressed - exiting")
+                #    break
+                
                 # Maintain consistent frame rate
                 current_time = time.time()
                 if current_time - last_frame_time < frame_interval:
                     time.sleep(0.001)  # Small sleep to prevent busy waiting
                     continue
                 last_frame_time = current_time
+                
+                # Pulse frame LED to indicate frame capture
+                self._pulse_frame_led()
                 
                 # Capture frame from camera
                 raw_frame = self.picam2.capture_array()
@@ -385,6 +548,9 @@ class ChoiceAssaySensor(Sensor):
                 if should_record and self.video_writer is None:
                     # Start new recording for the active arena
                     current_filename = file_naming.get_temporary_filename(self.recording_format)
+                    # Add arena identifier to filename
+                    if active_arena:
+                        current_filename = str(current_filename).replace('.mp4', f'_{active_arena}.mp4')
                     self._start_video_recording(current_filename, active_arena)
                 
                 elif not should_record and self.video_writer is not None:
@@ -418,23 +584,39 @@ class ChoiceAssaySensor(Sensor):
                 # Clean up any active recording on error
                 if self.video_writer is not None:
                     try:
-                        self._stop_video_recording()
-                    except:
+                        # Save arena name before it gets cleared by _stop_video_recording
+                        arena_name = self.current_recording_arena
+                        result = self._stop_video_recording()
+                        # Save the recording even on error to avoid losing data
+                        if result and current_filename and arena_name:
+                            start_time, end_time = result
+                            stream_index = self._get_stream_index_for_arena(arena_name)
+                            self.save_recording(
+                                stream_index,
+                                current_filename,
+                                start_time=start_time,
+                                end_time=end_time
+                            )
+                            logger.info(f"Emergency saved {arena_name} arena video on error: {current_filename}")
+                    except Exception as cleanup_error:
+                        logger.error(f"Error during emergency video cleanup: {cleanup_error}")
                         pass
 
                 # On the assumption that the error is transient, we will continue to run but sleep for 5s
                 self.stop_requested.wait(5)
                 if exception_count > 30:
-                    logger.error(f"ChoiceAssaySensor has failed {exception_count} times. Exiting.")
+                    logger.error(f"ChoiceAssaySensorWithLEDs has failed {exception_count} times. Exiting.")
                     self.sensor_failed()
                     break
 
         # Cleanup on exit
         try:
             if self.video_writer is not None:
+                # Save arena name before it gets cleared by _stop_video_recording
+                arena_name = self.current_recording_arena
                 start_time, end_time = self._stop_video_recording()
-                if current_filename and start_time and self.current_recording_arena:
-                    stream_index = self._get_stream_index_for_arena(self.current_recording_arena)
+                if current_filename and start_time and arena_name:
+                    stream_index = self._get_stream_index_for_arena(arena_name)
                     self.save_recording(
                         stream_index,
                         current_filename,
@@ -445,8 +627,11 @@ class ChoiceAssaySensor(Sensor):
             if self.picam2 is not None:
                 self.picam2.stop()
                 logger.info("Camera stopped")
+            
+            # Clean up GPIO
+            self._cleanup_gpio()
                 
         except Exception as e:
             logger.error(f"Error during cleanup: {e}", exc_info=True)
 
-        logger.warning("Exiting ChoiceAssaySensor motion detection loop")
+        logger.warning("Exiting ChoiceAssaySensorWithLEDs motion detection loop")

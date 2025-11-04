@@ -25,7 +25,7 @@ sys.modules['RPi.GPIO'] = Mock()
 # Add the src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from choice_assay.my_choice_assay_sensor_with_leds import ChoiceAssaySensorWithLEDs, ChoiceAssaySensorCfg
+from choice_assay.my_choice_assay_sensor import ChoiceAssaySensorWithLEDs, ChoiceAssaySensorCfg
 
 
 class TestChoiceAssaySensorVideoRecording(unittest.TestCase):
@@ -33,7 +33,7 @@ class TestChoiceAssaySensorVideoRecording(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        from choice_assay.my_choice_assay_sensor_with_leds import DEFAULT_CA_SENSOR_CFG
+        from choice_assay.my_choice_assay_sensor import DEFAULT_CA_SENSOR_CFG
         from datetime import datetime, timezone
         self.config = DEFAULT_CA_SENSOR_CFG
         
@@ -47,10 +47,11 @@ class TestChoiceAssaySensorVideoRecording(unittest.TestCase):
         self.start_time = datetime(2025, 11, 4, 14, 25, 0, tzinfo=timezone.utc)
         self.end_time = datetime(2025, 11, 4, 14, 30, 0, tzinfo=timezone.utc)
         
-        with patch('choice_assay.my_choice_assay_sensor_with_leds.Picamera2', self.mock_picamera2), \
-             patch('choice_assay.my_choice_assay_sensor_with_leds.cv2', self.mock_cv2), \
-             patch('choice_assay.my_choice_assay_sensor_with_leds.api', self.mock_api), \
-             patch('choice_assay.my_choice_assay_sensor_with_leds.logger', self.mock_logger):
+        with patch('choice_assay.my_choice_assay_sensor.Picamera2', self.mock_picamera2), \
+             patch('choice_assay.my_choice_assay_sensor.cv2', self.mock_cv2), \
+             patch('choice_assay.my_choice_assay_sensor.api', self.mock_api), \
+             patch('choice_assay.my_choice_assay_sensor.logger', self.mock_logger), \
+             patch('choice_assay.my_choice_assay_sensor.GPIO'):
             self.sensor = ChoiceAssaySensorWithLEDs(self.config)
             
         # Set up common mocks
@@ -229,7 +230,7 @@ class TestChoiceAssaySensorErrorScenarios(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        from choice_assay.my_choice_assay_sensor_with_leds import DEFAULT_CA_SENSOR_CFG
+        from choice_assay.my_choice_assay_sensor import DEFAULT_CA_SENSOR_CFG
         from datetime import datetime, timezone
         self.config = DEFAULT_CA_SENSOR_CFG
         
@@ -237,8 +238,9 @@ class TestChoiceAssaySensorErrorScenarios(unittest.TestCase):
         self.start_time = datetime(2025, 11, 4, 14, 25, 0, tzinfo=timezone.utc)
         self.end_time = datetime(2025, 11, 4, 14, 30, 0, tzinfo=timezone.utc)
         
-        with patch('choice_assay.my_choice_assay_sensor_with_leds.Picamera2'), \
-             patch('choice_assay.my_choice_assay_sensor_with_leds.cv2'):
+        with patch('choice_assay.my_choice_assay_sensor.Picamera2'), \
+             patch('choice_assay.my_choice_assay_sensor.cv2'), \
+             patch('choice_assay.my_choice_assay_sensor.GPIO'):
             self.sensor = ChoiceAssaySensorWithLEDs(self.config)
 
     @patch.object(ChoiceAssaySensorWithLEDs, 'save_recording')
@@ -290,7 +292,7 @@ class TestChoiceAssaySensorErrorScenarios(unittest.TestCase):
         self.sensor.current_recording_start_time = "2025-11-04T14:25:00Z"
         self.sensor.current_recording_arena = "left"
         
-        with patch('choice_assay.my_choice_assay_sensor_with_leds.api') as mock_api:
+        with patch('choice_assay.my_choice_assay_sensor.api') as mock_api:
             mock_api.utc_now.return_value = "2025-11-04T14:30:00Z"
             
             # First call should work
@@ -310,11 +312,12 @@ class TestChoiceAssaySensorMotionDetection(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        from choice_assay.my_choice_assay_sensor_with_leds import DEFAULT_CA_SENSOR_CFG
+        from choice_assay.my_choice_assay_sensor import DEFAULT_CA_SENSOR_CFG
         self.config = DEFAULT_CA_SENSOR_CFG
         
-        with patch('choice_assay.my_choice_assay_sensor_with_leds.Picamera2'), \
-             patch('choice_assay.my_choice_assay_sensor_with_leds.cv2'):
+        with patch('choice_assay.my_choice_assay_sensor.Picamera2'), \
+             patch('choice_assay.my_choice_assay_sensor.cv2'), \
+             patch('choice_assay.my_choice_assay_sensor.GPIO'):
             self.sensor = ChoiceAssaySensorWithLEDs(self.config)
 
     @patch.object(ChoiceAssaySensorWithLEDs, 'save_recording')
@@ -324,7 +327,7 @@ class TestChoiceAssaySensorMotionDetection(unittest.TestCase):
         with patch.object(self.sensor, '_detect_motion_dual_arena', return_value=(True, False)), \
              patch.object(self.sensor, '_start_video_recording', return_value="motion_test.avi"), \
              patch.object(self.sensor, '_get_stream_index_for_arena', return_value=0), \
-             patch('choice_assay.my_choice_assay_sensor_with_leds.api') as mock_api:
+             patch('choice_assay.my_choice_assay_sensor.api') as mock_api:
             
             mock_api.utc_now.return_value = "2025-11-04T14:30:00Z"
             

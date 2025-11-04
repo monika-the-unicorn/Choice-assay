@@ -470,8 +470,8 @@ class ChoiceAssaySensorWithLEDs(Sensor):
         bgr_frame = cv2.cvtColor(roi_frame, cv2.COLOR_RGB2BGR)
         self.video_writer.write(bgr_frame)
 
-    def _stop_video_recording(self) -> Optional[str]:
-        """Stop video recording and return the filename"""
+    def _stop_video_recording(self) -> Optional[Tuple]:
+        """Stop video recording and return (start_time, end_time) tuple"""
         if self.video_writer is None:
             return None
         
@@ -481,11 +481,12 @@ class ChoiceAssaySensorWithLEDs(Sensor):
         end_time = api.utc_now()
         logger.info(f"Stopped video recording for {self.current_recording_arena} arena")
         
-        # Clear arena tracking
-        arena = self.current_recording_arena
+        # Clear arena tracking but save reference for return
+        start_time = self.current_recording_start_time
         self.current_recording_arena = None
+        self.current_recording_start_time = None
         
-        return self.current_recording_start_time, end_time
+        return start_time, end_time
 
     def run(self):
         """Main loop for motion-detected video recording with LED indicators."""
@@ -583,8 +584,22 @@ class ChoiceAssaySensorWithLEDs(Sensor):
                 # Clean up any active recording on error
                 if self.video_writer is not None:
                     try:
-                        self._stop_video_recording()
-                    except:
+                        # Save arena name before it gets cleared by _stop_video_recording
+                        arena_name = self.current_recording_arena
+                        result = self._stop_video_recording()
+                        # Save the recording even on error to avoid losing data
+                        if result and current_filename and arena_name:
+                            start_time, end_time = result
+                            stream_index = self._get_stream_index_for_arena(arena_name)
+                            self.save_recording(
+                                stream_index,
+                                current_filename,
+                                start_time=start_time,
+                                end_time=end_time
+                            )
+                            logger.info(f"Emergency saved {arena_name} arena video on error: {current_filename}")
+                    except Exception as cleanup_error:
+                        logger.error(f"Error during emergency video cleanup: {cleanup_error}")
                         pass
 
                 # On the assumption that the error is transient, we will continue to run but sleep for 5s
@@ -597,9 +612,11 @@ class ChoiceAssaySensorWithLEDs(Sensor):
         # Cleanup on exit
         try:
             if self.video_writer is not None:
+                # Save arena name before it gets cleared by _stop_video_recording
+                arena_name = self.current_recording_arena
                 start_time, end_time = self._stop_video_recording()
-                if current_filename and start_time and self.current_recording_arena:
-                    stream_index = self._get_stream_index_for_arena(self.current_recording_arena)
+                if current_filename and start_time and arena_name:
+                    stream_index = self._get_stream_index_for_arena(arena_name)
                     self.save_recording(
                         stream_index,
                         current_filename,

@@ -405,8 +405,7 @@ class ChoiceAssaySensorWithLEDs(Sensor):
                     logger.info(f"Grace period expired in {old_arena} arena - stopping recording")
                     return False, None
                 else:
-                    # Still in grace period - keep blue LED on
-                    self._set_led_state(BLUE_LED_PIN, True)
+                    # Still in grace period - blue LED should already be on, no need to set repeatedly
                     return True, self.active_arena
         
         # No motion detected and not in recording state
@@ -554,19 +553,22 @@ class ChoiceAssaySensorWithLEDs(Sensor):
                     self._start_video_recording(current_filename, active_arena)
                 
                 elif not should_record and self.video_writer is not None:
+                    # Save arena name before stopping recording (since _stop_video_recording clears it)
+                    arena_name = self.current_recording_arena
+                    
                     # Stop current recording
                     start_time, end_time = self._stop_video_recording()
                     
                     # Save the completed video file
-                    if current_filename and start_time and self.current_recording_arena:
-                        stream_index = self._get_stream_index_for_arena(self.current_recording_arena)
+                    if current_filename and start_time and arena_name:
+                        stream_index = self._get_stream_index_for_arena(arena_name)
                         self.save_recording(
                             stream_index,
                             current_filename,
                             start_time=start_time,
                             end_time=end_time
                         )
-                        logger.info(f"Saved {self.current_recording_arena} arena video recording: {current_filename}")
+                        logger.info(f"Saved {arena_name} arena video recording: {current_filename}")
                     
                     current_filename = None
                 

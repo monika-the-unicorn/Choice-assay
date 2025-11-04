@@ -515,9 +515,10 @@ class ChoiceAssaySensorWithLEDs(Sensor):
         while self.continue_recording():
             try:
                 # Check emergency stop button
-                if self._check_emergency_stop():
-                    logger.info("Emergency stop button pressed - exiting")
-                    break
+                # @@@ remove
+                #if self._check_emergency_stop():
+                #    logger.info("Emergency stop button pressed - exiting")
+                #    break
                 
                 # Maintain consistent frame rate
                 current_time = time.time()

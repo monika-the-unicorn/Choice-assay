@@ -77,7 +77,7 @@ INVENTORY: list[DeviceCfg] = [
     ),
     DeviceCfg(
         name="ChoiceAssayRPi-2",
-        device_id="d83add2b9acd", 
+        device_id="2ccf675765fd", 
         notes="Dual-arena choice assay camera with motion detection",
         dp_trees_create_method=create_choice_assay_device,
         wifi_clients=WIFI_CLIENTS,

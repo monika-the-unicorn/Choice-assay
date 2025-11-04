@@ -62,7 +62,7 @@ def create_choice_assay_device() -> list[DPtree]:
 INVENTORY: list[DeviceCfg] = [
     DeviceCfg(
         name="ChoiceAssayRPi1",
-        device_id="d01111111111", 
+        device_id="d83add2b9ab1", 
         notes="Dual-arena choice assay camera with motion detection",
         dp_trees_create_method=create_choice_assay_device,
         wifi_clients=WIFI_CLIENTS,

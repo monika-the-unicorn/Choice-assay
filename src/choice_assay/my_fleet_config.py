@@ -47,6 +47,10 @@ WIFI_CLIENTS: list[WifiClient] = [
             ssid="GNX103510",
             pw="XQSX3SSAPSPH",
             priority=70),
+        WifiClient(
+            ssid="choice_assay",
+            pw="choice_assay",
+            priority=90),
     ]
 
 def create_choice_assay_device() -> list[DPtree]:
@@ -61,8 +65,19 @@ def create_choice_assay_device() -> list[DPtree]:
 ###############################################################################
 INVENTORY: list[DeviceCfg] = [
     DeviceCfg(
-        name="ChoiceAssayRPi1",
+        name="ChoiceAssayRPi-1",
         device_id="d83add2b9ab1", 
+        notes="Dual-arena choice assay camera with motion detection",
+        dp_trees_create_method=create_choice_assay_device,
+        wifi_clients=WIFI_CLIENTS,
+        tags={
+            "Location": "Wytham Field Station",
+            "ExperimentType": "BeeChoiceAssay",
+        },
+    ),
+    DeviceCfg(
+        name="ChoiceAssayRPi-2",
+        device_id="d83add2b9acd", 
         notes="Dual-arena choice assay camera with motion detection",
         dp_trees_create_method=create_choice_assay_device,
         wifi_clients=WIFI_CLIENTS,

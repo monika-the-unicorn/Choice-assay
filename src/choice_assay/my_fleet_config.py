@@ -85,6 +85,7 @@ INVENTORY: list[DeviceCfg] = [
             "Location": "Wytham Field Station",
             "ExperimentType": "BeeChoiceAssay",
         },
+        log_level=10
     ),
 ]
 

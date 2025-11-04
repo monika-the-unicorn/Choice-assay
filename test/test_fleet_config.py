@@ -13,7 +13,7 @@ def test_fleet_config():
         choice_assay_path = os.path.join(os.path.dirname(__file__), '..', 'src', 'choice_assay')
         sys.path.insert(0, choice_assay_path)
         
-        from my_fleet_config import INVENTORY, create_choice_assay_device
+        from choice_assay.my_fleet_config import INVENTORY, create_choice_assay_device
         
         print("✓ Fleet config imported successfully")
         

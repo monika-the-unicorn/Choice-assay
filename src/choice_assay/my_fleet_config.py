@@ -1,13 +1,9 @@
 
 from expidite_rpi.core.device_config_objects import DeviceCfg, WifiClient
 from expidite_rpi.core.dp_tree import DPtree
-from expidite_rpi.example.my_processor_example import EXAMPLE_FILE_PROCESSOR_CFG, ExampleProcessor
-
 from choice_assay.my_choice_assay_sensor import (
-    ChoiceAssaySensor,
+    ChoiceAssaySensorWithLEDs,
     DEFAULT_CA_SENSOR_CFG,
-    CA_LEFT_VIDEO_STREAM_INDEX,
-    CA_RIGHT_VIDEO_STREAM_INDEX,
 )
 
 ###############################################################################
@@ -55,7 +51,7 @@ WIFI_CLIENTS: list[WifiClient] = [
 
 def create_choice_assay_device() -> list[DPtree]:
     """Create a dual-arena choice assay camera device."""
-    my_sensor = ChoiceAssaySensor(DEFAULT_CA_SENSOR_CFG)    
+    my_sensor = ChoiceAssaySensorWithLEDs(DEFAULT_CA_SENSOR_CFG)    
     my_tree = DPtree(my_sensor)
     
     return [my_tree]

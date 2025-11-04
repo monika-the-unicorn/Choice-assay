@@ -547,9 +547,6 @@ class ChoiceAssaySensorWithLEDs(Sensor):
                 if should_record and self.video_writer is None:
                     # Start new recording for the active arena
                     current_filename = file_naming.get_temporary_filename(self.recording_format)
-                    # Add arena identifier to filename
-                    if active_arena:
-                        current_filename = str(current_filename).replace('.mp4', f'_{active_arena}.mp4')
                     self._start_video_recording(current_filename, active_arena)
                 
                 elif not should_record and self.video_writer is not None:

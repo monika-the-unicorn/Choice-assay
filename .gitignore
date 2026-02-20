@@ -1,2 +1,6 @@
 /test/__pycache__
 *.pyc
+/DLC_model/dlc-models/iteration-0
+/DLC_model/evaluation-results
+/DLC_model/labeled-data
+/DLC_model

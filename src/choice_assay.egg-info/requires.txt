@@ -1,3 +1,4 @@
-expidite@ git+https://github.com/oxford-bee-ops/expidite.git
+expidite @ git+https://github.com/oxford-bee-ops/expidite.git
+ultralytics==8.4.6
 mypy
 pip

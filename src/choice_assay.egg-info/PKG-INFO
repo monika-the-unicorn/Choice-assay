@@ -1,9 +1,10 @@
 Metadata-Version: 2.4
 Name: choice-assay
-Version: 0.0.1
+Version: 0.0.9
 Requires-Python: >=3.11
 Description-Content-Type: text/markdown
-Requires-Dist: expidite@ git+https://github.com/oxford-bee-ops/expidite.git
+Requires-Dist: expidite @ git+https://github.com/oxford-bee-ops/expidite.git
+Requires-Dist: ultralytics==8.4.6
 Requires-Dist: mypy
 Requires-Dist: pip
 

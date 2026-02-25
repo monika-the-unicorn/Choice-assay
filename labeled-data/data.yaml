@@ -4,4 +4,5 @@ kpt_shape:
 names:
   0: bee
 path: .
-train: train.txt
+train: labeled-data/autosplit_train.txt
+val: labeled-data/autosplit_val.txt

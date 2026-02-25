@@ -14,6 +14,7 @@ from expidite_rpi.core import configuration as root_cfg
 
 logger = root_cfg.setup_logger("expidite")
 
+
 def main():
     """Run RpiCore as defined in the system.cfg file."""
 
@@ -29,7 +30,7 @@ def main():
         if inventory is None:
             logger.error("Failed to load inventory. Exiting...")
             return
-        
+
         sc.configure(inventory)
 
         # Start the RpiCore and begin data collection

@@ -1,9 +1,17 @@
-
+from expidite_rpi.core import api
 from expidite_rpi.core.device_config_objects import DeviceCfg, WifiClient
 from expidite_rpi.core.dp_tree import DPtree
-from choice_assay.my_choice_assay_sensor import (
-    ChoiceAssaySensorWithLEDs,
-    DEFAULT_CA_SENSOR_CFG,
+from expidite_rpi.sensors.sensor_rpicam_vid import (
+    RPICAM_REVIEW_MODE_STREAM,
+    RPICAM_STREAM,
+    RPICAM_STREAM_INDEX,
+    RpicamSensor,
+    RpicamSensorCfg,
+)
+
+from choice_assay.choice_assay_trapcam import (
+    DEFAULT_CHOICE_ASSAY_TRAPCAM_PROCESSOR_CFG,
+    ChoiceAssayTrapcamProcessor,
 )
 
 ###############################################################################
@@ -38,23 +46,57 @@ from choice_assay.my_choice_assay_sensor import (
 
 # Pre-configure the devices with awareness of wifi APs
 WIFI_CLIENTS: list[WifiClient] = [
-        WifiClient("bee-ops", 100, "abcdabcd"),
-        WifiClient(
-            ssid="GNX103510",
-            pw="XQSX3SSAPSPH",
-            priority=70),
-        WifiClient(
-            ssid="choice_assay",
-            pw="choice_assay",
-            priority=90),
-    ]
+    WifiClient("bee-ops", 100, "abcdabcd"),
+    WifiClient(ssid="GNX103510", pw="XQSX3SSAPSPH", priority=70),
+    WifiClient(ssid="choice_assay", pw="choice_assay", priority=90),
+]
 
+
+################################################################################
+# Build up the ChoiceAssay DPtree for each device
+#
+# Core logic:
+# - Sensor
+#   - Standard rpicam sensor takes 3 min videos
+# - Trapcam with extra logic:
+#   - Tuning threshold to be sensitive but avoid shadow type triggering
+#   - Continuous fgbg
+#   - Function to determine if activity in either side (takes contours list)
+#   - Function to save video based on side
+#     - ROI to one side or other based on blob location
+#     - Save to different data type id based on side
+# - ChoiceAssay ML processor to XY data
+#   - Pose estimation key points rather than boxes - will require new boxes-to-df logic
+#   - ChoiceAssayTrap video if ML detects anything
+#   - Aggregate to final mid-proboscis visible seconds
+#################################################################################
 def create_choice_assay_device() -> list[DPtree]:
     """Create a dual-arena choice assay camera device."""
-    my_sensor = ChoiceAssaySensorWithLEDs(DEFAULT_CA_SENSOR_CFG)    
+
+    # Define the video sensor
+    cfg = RpicamSensorCfg(
+        sensor_type=api.SENSOR_TYPE.CAMERA,
+        sensor_index=0,
+        sensor_model="PiCameraModule3",
+        description="Video sensor that uses rpicam-vid",
+        outputs=[RPICAM_STREAM, RPICAM_REVIEW_MODE_STREAM],
+        rpicam_cmd="rpicam-vid --framerate 15 --width 640 --height 480 -o FILENAME -t 5000",
+    )
+    my_sensor = RpicamSensor(cfg)
+
+    # Define the Trapcam dataprocessor
+    trapcam_dp = ChoiceAssayTrapcamProcessor(
+        DEFAULT_CHOICE_ASSAY_TRAPCAM_PROCESSOR_CFG,
+        my_sensor.sensor_index,
+    )
+
+    # Define the ML dataprocessor
+
     my_tree = DPtree(my_sensor)
-    
+    my_tree.connect((my_sensor, RPICAM_STREAM_INDEX), trapcam_dp)
+
     return [my_tree]
+
 
 ###############################################################################
 # Define per-device configuration for the fleet of devices
@@ -62,7 +104,7 @@ def create_choice_assay_device() -> list[DPtree]:
 INVENTORY: list[DeviceCfg] = [
     DeviceCfg(
         name="ChoiceAssayRPi-1",
-        device_id="d83add2b9ab1", 
+        device_id="d83add2b9ab1",
         notes="Dual-arena choice assay camera with motion detection",
         dp_trees_create_method=create_choice_assay_device,
         wifi_clients=WIFI_CLIENTS,
@@ -73,7 +115,7 @@ INVENTORY: list[DeviceCfg] = [
     ),
     DeviceCfg(
         name="ChoiceAssayRPi-2",
-        device_id="2ccf675765fd", 
+        device_id="2ccf675765fd",
         notes="Dual-arena choice assay camera with motion detection",
         dp_trees_create_method=create_choice_assay_device,
         wifi_clients=WIFI_CLIENTS,
@@ -81,8 +123,6 @@ INVENTORY: list[DeviceCfg] = [
             "Location": "Wytham Field Station",
             "ExperimentType": "BeeChoiceAssay",
         },
-        log_level=10
+        log_level=10,
     ),
 ]
-
-        

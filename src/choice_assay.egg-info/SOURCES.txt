@@ -1,9 +1,10 @@
 README.md
 pyproject.toml
 src/choice_assay/__init__.py
+src/choice_assay/choice_assay_trapcam.py
+src/choice_assay/my_choice_assay_sensor.py
 src/choice_assay/my_fleet_config.py
 src/choice_assay/my_processor_example.py
-src/choice_assay/my_video_sensor.py
 src/choice_assay/run_my_sensor.py
 src/choice_assay.egg-info/PKG-INFO
 src/choice_assay.egg-info/SOURCES.txt
@@ -16,3 +17,7 @@ src/example/my_processor_example.py
 src/example/my_sensor_example.py
 src/example/run_my_sensor.py
 src/example/run_system_test.py
+test/test_choice_assay_sensor_video_recording.py
+test/test_choice_assay_sensor_with_leds.py
+test/test_fleet_config.py
+test/test_my_video_sensor.py

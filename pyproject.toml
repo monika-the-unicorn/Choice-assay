@@ -9,6 +9,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "expidite @ git+https://github.com/oxford-bee-ops/expidite.git",
+    "ultralytics==8.4.6",
     "mypy",
     "pip",
 ]
@@ -22,6 +23,7 @@ where = ["src"]
 [tool.ruff]
 line-length = 110
 indent-width = 4
+extend-exclude = ["*.ipynb"]
 
 [tool.ruff.format]
 quote-style = "double"

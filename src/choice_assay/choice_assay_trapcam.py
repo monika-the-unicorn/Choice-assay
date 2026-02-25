@@ -101,12 +101,11 @@ class ChoiceAssayTrapcamProcessor(DataProcessor):
         return self.params.left_recording_roi if side == "left" else self.params.right_recording_roi
 
     def _build_writer(
-        self, source_fps: float, frame_shape: tuple[int, int], output_path: str
+        self, fps: float, frame_shape: tuple[int, int], output_path: str | Path
     ) -> cv2.VideoWriter:
         width, height = frame_shape
-        fps = source_fps if source_fps and source_fps > 0 else 15.0
-        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-        return cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+        fourcc = cv2.VideoWriter.fourcc(*"mp4v")
+        return cv2.VideoWriter(str(output_path), fourcc, fps, (width, height))
 
     def _extract_motion_data(self, video_path: Path) -> tuple[pd.DataFrame, float]:
         """Pass 1: scan video and record frame-wise motion metrics into a DataFrame."""
@@ -117,7 +116,7 @@ class ChoiceAssayTrapcamProcessor(DataProcessor):
             logger.error(f"Could not open video for trapcam processing: {video_path}")
             return pd.DataFrame(), 0.0
 
-        fps = float(capture.get(cv2.CAP_PROP_FPS) or 5)
+        fps = float(capture.get(cv2.CAP_PROP_FPS))
         motion_rows: list[dict] = []
         frame_index = 0
 
@@ -240,8 +239,8 @@ class ChoiceAssayTrapcamProcessor(DataProcessor):
 
                 if writer is not None:
                     writer.release()
-                    clip_start = start_timestamp + timedelta(seconds=start_frame / max(fps, 1.0))
-                    clip_end = start_timestamp + timedelta(seconds=end_frame / max(fps, 1.0))
+                    clip_start = start_timestamp + timedelta(seconds=start_frame / fps)
+                    clip_end = start_timestamp + timedelta(seconds=end_frame / fps)
                     self.save_recording(
                         stream_index=self._get_stream_index(side),
                         temporary_file=Path(output_file),

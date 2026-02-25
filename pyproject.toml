@@ -40,6 +40,7 @@ where = ["src"]
 [tool.ruff]
 line-length = 110
 indent-width = 4
+extend-exclude = ["src/choice_assay/my_choice_assay_sensor.py"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -223,7 +224,8 @@ warn_unused_ignores = false
 include = ["src"]
 exclude = [
     "**/__pycache__",
-    "src/bee_ops/setup_utils.py"
+    "src/bee_ops/setup_utils.py",
+    "src/choice_assay/my_choice_assay_sensor.py"
 ]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
@@ -249,5 +251,6 @@ reportUnknownVariableType = "none"
 ##############################################################################################################
 [tool.ty.src]
 include = ["src", "tests"]
+exclude = ["src/choice_assay/my_choice_assay_sensor.py"]
 [tool.ty.environment]
 python-version = "3.11"

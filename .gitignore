@@ -5,3 +5,5 @@
 /DLC_model/labeled-data
 /DLC_model
 /labeled-data/old_labels
+/ml_runs
+/src/choice_assay.egg-info

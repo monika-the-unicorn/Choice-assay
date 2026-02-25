@@ -1,5 +1,4 @@
-"""
-Test script for ChoiceAssaySensor - validates motion detection logic without requiring camera hardware.
+"""Test script for ChoiceAssaySensor - validates motion detection logic without requiring camera hardware.
 
 This test script validates:
 1. Configuration and initialization

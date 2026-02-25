@@ -15,9 +15,8 @@ from expidite_rpi.core import configuration as root_cfg
 logger = root_cfg.setup_logger("expidite")
 
 
-def main():
+def main() -> None:
     """Run RpiCore as defined in the system.cfg file."""
-
     try:
         # Configure the RpiCore with the fleet configuration
         # This will load the configuration and check for errors
@@ -41,10 +40,10 @@ def main():
             sleep(1800)
 
     except KeyboardInterrupt:
-        logger.error("Keyboard interrupt => stopping RpiCore... this may take up to 180s.")
+        logger.exception("Keyboard interrupt => stopping RpiCore... this may take up to 180s.")
         sc.stop()
-    except Exception as e:
-        logger.error(f"Error: {e}", exc_info=True)
+    except Exception:
+        logger.exception("Error")
         sc.stop()
 
 

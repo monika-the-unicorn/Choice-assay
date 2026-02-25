@@ -55,7 +55,7 @@ DEFAULT_CHOICE_ASSAY_TRAPCAM_PROCESSOR_CFG = DataProcessorCfg(
 
 
 class ChoiceAssayTrapcamProcessor(DataProcessor):
-    def __init__(self, config: DataProcessorCfg, sensor_index: int):
+    def __init__(self, config: DataProcessorCfg, sensor_index: int) -> None:
         super().__init__(config, sensor_index)
         self.params = ChoiceAssayTrapcamParams()
 
@@ -157,13 +157,15 @@ class ChoiceAssayTrapcamProcessor(DataProcessor):
             return []
 
         params = self.params
-        df = motion_df[["frame_index", "raw_active_side"]].copy()
-        df = df.sort_values("frame_index").reset_index(drop=True)
+        motion_df_cleaned = motion_df[["frame_index", "raw_active_side"]].copy()
+        motion_df_cleaned = motion_df_cleaned.sort_values("frame_index").reset_index(drop=True)
 
         # 1) Remove short side bursts (likely noise) using run-length filtering.
-        side_runs = df["raw_active_side"].ne(df["raw_active_side"].shift()).cumsum()
-        run_lengths = df.groupby(side_runs, sort=False)["raw_active_side"].transform("size")
-        stable_side = df["raw_active_side"].where(run_lengths >= params.min_motion_run_frames)
+        side_runs = (
+            motion_df_cleaned["raw_active_side"].ne(motion_df_cleaned["raw_active_side"].shift()).cumsum()
+        )
+        run_lengths = motion_df_cleaned.groupby(side_runs, sort=False)["raw_active_side"].transform("size")
+        stable_side = motion_df_cleaned["raw_active_side"].where(run_lengths >= params.min_motion_run_frames)
 
         # 2) Bridge short gaps (None) up to grace_frames only when both sides agree.
         forward_filled = stable_side.ffill(limit=params.grace_frames)
@@ -175,7 +177,7 @@ class ChoiceAssayTrapcamProcessor(DataProcessor):
         if not active_mask.any():
             return []
 
-        active_df = df.loc[active_mask, ["frame_index"]].copy()
+        active_df = motion_df_cleaned.loc[active_mask, ["frame_index"]].copy()
         active_df["side"] = clean_side.loc[active_mask]
         period_id = active_df["side"].ne(active_df["side"].shift()).cumsum()
 
@@ -199,7 +201,7 @@ class ChoiceAssayTrapcamProcessor(DataProcessor):
 
         # Get the start timestamp from the video_path filename to calculate clip timestamps later
         parts = file_naming.parse_record_filename(video_path.name)
-        start_timestamp = parts.get(api.RECORD_ID.TIMESTAMP.value)
+        start_timestamp = parts.get(api.RECORD_ID.TIMESTAMP.value, api.utc_now())
 
         for period in periods:
             side = period["side"]
@@ -271,7 +273,8 @@ class ChoiceAssayTrapcamProcessor(DataProcessor):
     # Main entry point for Expidite to call with new video files to process
     def process_data(self, input_data: pd.DataFrame | list[Path]) -> None:
         """This is the function called by Expidite to process new data.
-        It receives a list of file paths to new video files that have been recorded by the sensor."""
+        It receives a list of file paths to new video files that have been recorded by the sensor.
+        """
         if input_data is None:
             return
 
@@ -285,8 +288,5 @@ class ChoiceAssayTrapcamProcessor(DataProcessor):
                     logger.warning(f"Trapcam input file does not exist: {video_file}")
                     continue
                 self._process_video_file(video_file)
-            except Exception as exc:
-                logger.error(
-                    f"Trapcam processing failed for {video_file}: {exc}",
-                    exc_info=True,
-                )
+            except Exception:
+                logger.exception("Trapcam processing failed for %s", video_file)

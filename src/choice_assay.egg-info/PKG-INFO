@@ -7,5 +7,16 @@ Requires-Dist: expidite @ git+https://github.com/oxford-bee-ops/expidite.git
 Requires-Dist: ultralytics==8.4.6
 Requires-Dist: mypy
 Requires-Dist: pip
+Provides-Extra: dev
+Requires-Dist: mypy==1.19.1; extra == "dev"
+Requires-Dist: pandas-stubs==3.0.0.260204; extra == "dev"
+Requires-Dist: pyinstrument==5.1.2; extra == "dev"
+Requires-Dist: pyright==1.1.408; extra == "dev"
+Requires-Dist: pytest==9.0.2; extra == "dev"
+Requires-Dist: pytz==2025.2; extra == "dev"
+Requires-Dist: ruff==0.15.2; extra == "dev"
+Requires-Dist: ty==0.0.18; extra == "dev"
+Requires-Dist: types-python-dateutil==2.9.0.20260124; extra == "dev"
+Requires-Dist: types-pytz==2025.2.0.20251108; extra == "dev"
 
 # Choice-assay

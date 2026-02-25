@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Test suite for ChoiceAssaySensorWithLEDs
+"""Test suite for ChoiceAssaySensorWithLEDs
 
 This test suite mocks the RPi.GPIO module to allow testing LED functionality
 on systems without physical GPIO pins.
@@ -20,7 +19,7 @@ sys.modules["RPi.GPIO"] = Mock()
 # Add the src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from choice_assay.my_choice_assay_sensor import ChoiceAssaySensorWithLEDs  # noqa: E402
+from choice_assay.my_choice_assay_sensor import ChoiceAssaySensorWithLEDs
 
 
 class TestChoiceAssaySensorWithLEDs(unittest.TestCase):

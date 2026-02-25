@@ -36,10 +36,13 @@ EXAMPLE_FILE_PROCESSOR_CFG = DataProcessorCfg(
 #############################################################################################################
 class ExampleProcessor(DataProcessor):
     def process_data(self, input_data: pd.DataFrame | list[Path]) -> None:
-        """This implementation of the process_data method is used in testing:
+        """This implementation of the process_data method is used in testing.
+
+        Features:
         - so has an excess number of asserts!
         - demonstrates a file DP converting a file list to a DataFrame
-        - demonstrates a DF DP returning a DataFrame"""
+        - demonstrates a DF DP returning a DataFrame
+        """
         assert input_data is not None
         assert isinstance(input_data, list)
 
@@ -47,9 +50,7 @@ class ExampleProcessor(DataProcessor):
 
         output_data: list[dict] = []
         if len(input_data) > 0:
-            for f in input_data:
-                # Generate output to the primary datastream
-                output_data.append({"pixel_count": 25})
+            output_data.extend({"pixel_count": 25} for _ in input_data)
 
         # Generate data for the derived datastream
         self.save_data(stream_index=EXAMPLE_DF_STREAM_INDEX, sensor_data=pd.DataFrame(output_data))

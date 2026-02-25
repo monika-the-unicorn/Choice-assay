@@ -9,7 +9,13 @@ from expidite_rpi.sensors.sensor_rpicam_vid import (
     RpicamSensorCfg,
 )
 
+from choice_assay.choice_assay_pose_processor import (
+    DEFAULT_CHOICE_ASSAY_POSE_PROCESSOR_CFG,
+    ChoiceAssayPoseProcessor,
+)
 from choice_assay.choice_assay_trapcam import (
+    CA_LEFT_VIDEO_STREAM_INDEX,
+    CA_RIGHT_VIDEO_STREAM_INDEX,
     DEFAULT_CHOICE_ASSAY_TRAPCAM_PROCESSOR_CFG,
     ChoiceAssayTrapcamProcessor,
 )
@@ -72,7 +78,6 @@ WIFI_CLIENTS: list[WifiClient] = [
 #################################################################################
 def create_choice_assay_device() -> list[DPtree]:
     """Create a dual-arena choice assay camera device."""
-
     # Define the video sensor
     cfg = RpicamSensorCfg(
         sensor_type=api.SENSOR_TYPE.CAMERA,
@@ -91,9 +96,19 @@ def create_choice_assay_device() -> list[DPtree]:
     )
 
     # Define the ML dataprocessor
+    pose_dp_left = ChoiceAssayPoseProcessor(
+        DEFAULT_CHOICE_ASSAY_POSE_PROCESSOR_CFG,
+        my_sensor.sensor_index,
+    )
+    pose_dp_right = ChoiceAssayPoseProcessor(
+        DEFAULT_CHOICE_ASSAY_POSE_PROCESSOR_CFG,
+        my_sensor.sensor_index,
+    )
 
     my_tree = DPtree(my_sensor)
     my_tree.connect((my_sensor, RPICAM_STREAM_INDEX), trapcam_dp)
+    my_tree.connect((trapcam_dp, CA_LEFT_VIDEO_STREAM_INDEX), pose_dp_left)
+    my_tree.connect((trapcam_dp, CA_RIGHT_VIDEO_STREAM_INDEX), pose_dp_right)
 
     return [my_tree]
 

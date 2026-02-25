@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Enhanced Test Suite for ChoiceAssaySensorWithLEDs
+"""Enhanced Test Suite for ChoiceAssaySensorWithLEDs
 
 This enhanced test suite provides comprehensive coverage including:
 - Video recording workflow testing
@@ -24,7 +23,9 @@ sys.modules["RPi.GPIO"] = Mock()
 # Add the src directory to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from choice_assay.my_choice_assay_sensor import ChoiceAssaySensorWithLEDs  # noqa: E402
+from datetime import UTC
+
+from choice_assay.my_choice_assay_sensor import ChoiceAssaySensorWithLEDs
 
 
 class TestChoiceAssaySensorVideoRecording(unittest.TestCase):
@@ -32,7 +33,7 @@ class TestChoiceAssaySensorVideoRecording(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from choice_assay.my_choice_assay_sensor import DEFAULT_CA_SENSOR_CFG
 
@@ -45,8 +46,8 @@ class TestChoiceAssaySensorVideoRecording(unittest.TestCase):
         self.mock_logger = Mock()
 
         # Set up datetime objects for realistic timestamp testing
-        self.start_time = datetime(2025, 11, 4, 14, 25, 0, tzinfo=timezone.utc)
-        self.end_time = datetime(2025, 11, 4, 14, 30, 0, tzinfo=timezone.utc)
+        self.start_time = datetime(2025, 11, 4, 14, 25, 0, tzinfo=UTC)
+        self.end_time = datetime(2025, 11, 4, 14, 30, 0, tzinfo=UTC)
 
         with (
             patch("choice_assay.my_choice_assay_sensor.Picamera2", self.mock_picamera2),
@@ -217,15 +218,15 @@ class TestChoiceAssaySensorErrorScenarios(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures"""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from choice_assay.my_choice_assay_sensor import DEFAULT_CA_SENSOR_CFG
 
         self.config = DEFAULT_CA_SENSOR_CFG
 
         # Set up datetime objects for realistic timestamp testing
-        self.start_time = datetime(2025, 11, 4, 14, 25, 0, tzinfo=timezone.utc)
-        self.end_time = datetime(2025, 11, 4, 14, 30, 0, tzinfo=timezone.utc)
+        self.start_time = datetime(2025, 11, 4, 14, 25, 0, tzinfo=UTC)
+        self.end_time = datetime(2025, 11, 4, 14, 30, 0, tzinfo=UTC)
 
         with (
             patch("choice_assay.my_choice_assay_sensor.Picamera2"),

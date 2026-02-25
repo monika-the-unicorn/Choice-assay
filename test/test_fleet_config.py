@@ -1,6 +1,4 @@
-"""
-Quick test to verify fleet configuration loads correctly
-"""
+"""Quick test to verify fleet configuration loads correctly"""
 
 import os
 import sys

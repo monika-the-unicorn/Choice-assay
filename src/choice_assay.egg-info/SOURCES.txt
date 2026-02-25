@@ -1,6 +1,7 @@
 README.md
 pyproject.toml
 src/choice_assay/__init__.py
+src/choice_assay/choice_assay_pose_processor.py
 src/choice_assay/choice_assay_trapcam.py
 src/choice_assay/my_choice_assay_sensor.py
 src/choice_assay/my_fleet_config.py
